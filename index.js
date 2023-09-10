@@ -3,17 +3,34 @@ import easymidi from 'easymidi'
 import { exit } from 'process'
 
 const inputs = easymidi.getInputs()
-if (inputs.length === 0) {
-	console.error('No MIDI input found.')
-	exit(0)
-}
-const inputName = inputs.at(0)
-console.log(`Using ${inputName} as input.`)
+const outputs = easymidi.getOutputs()
 
-const input = new easymidi.Input(inputName)
+const input = (() => {
+	const inputName = inputs.at(0)
+	if (inputName === undefined) {
+		console.error('No MIDI input found.')
+		exit(0)
+	}
+
+	return new easymidi.Input(inputName)
+})()
+console.log(`Using ${input.name} as input.`)
+
+const output = (() => {
+	const isWithOutput = outputs.some((output) => output === input.name)
+	if (isWithOutput) {
+		return new easymidi.Output(input.name)
+	}
+	return null
+})()
+
+const notesOn = new Map()
+const notesOffset = 36
+const noteIndexesWithStat = [0, 1]
+
 input.on('noteon', (message) => {
-	if (message.note >= 36 && message.note <= 43 && message.channel === 0) {
-		const index = message.note - 36
+	const index = message.note - notesOffset
+	if (index >= 0 && index <= 7 && message.channel === 0) {
 		const now = new Date()
 		const key = `f${13 + index}`
 		console.log(
@@ -22,5 +39,24 @@ input.on('noteon', (message) => {
 			})}] Simulate ${key.toUpperCase()} key press.`,
 		)
 		execFileSync('nircmd.exe', ['sendkeypress', key])
+		if (noteIndexesWithStat.includes(index)) {
+			const newValue = !(notesOn.get(message.note) ?? false)
+			notesOn.set(message.note, newValue)
+			console.log(
+				`Setting key ${key.toUpperCase()} to ${newValue ? 'on' : 'off'}.`,
+			)
+		}
 	}
 })
+
+const loop = () => {
+	for (const [index, isOn] of notesOn.entries()) {
+		output.send(isOn ? 'noteon' : 'noteoff', {
+			note: index,
+			velocity: 127,
+			channel: 0,
+		})
+	}
+	setTimeout(loop, 100)
+}
+loop()
