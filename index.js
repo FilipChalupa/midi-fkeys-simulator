@@ -19,7 +19,7 @@ input.on('noteon', (message) => {
 		console.log(
 			`[${now.toLocaleTimeString('en', {
 				hour12: false,
-			})}] Simulate ${key} press.`,
+			})}] Simulate ${key.toUpperCase()} key press.`,
 		)
 		execFileSync('nircmd.exe', ['sendkeypress', key])
 	}
