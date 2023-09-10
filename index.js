@@ -26,11 +26,12 @@ const output = (() => {
 
 const notesOn = new Map()
 const notesOffset = 36
+const noteIndexes = [0, 1, 2, 3, 4, 5, 6, 7]
 const noteIndexesWithStat = [0, 1]
 
 input.on('noteon', (message) => {
 	const index = message.note - notesOffset
-	if (index >= 0 && index <= 7 && message.channel === 0) {
+	if (noteIndexes.includes(index) && message.channel === 0) {
 		const now = new Date()
 		const key = `f${13 + index}`
 		console.log(
@@ -49,14 +50,33 @@ input.on('noteon', (message) => {
 	}
 })
 
+const turnOnOff = (note, isOn) => {
+	output.send(isOn ? 'noteon' : 'noteoff', {
+		note: note,
+		velocity: 127,
+		channel: 0,
+	})
+}
+
 const loop = () => {
-	for (const [index, isOn] of notesOn.entries()) {
-		output.send(isOn ? 'noteon' : 'noteoff', {
-			note: index,
-			velocity: 127,
-			channel: 0,
-		})
+	for (const [note, isOn] of notesOn.entries()) {
+		turnOnOff(note, isOn)
 	}
 	setTimeout(loop, 100)
 }
 loop()
+
+const animate = () => {
+	noteIndexes.forEach((index) => {
+		const note = index + notesOffset
+		turnOnOff(note, false)
+		setTimeout(() => {
+			turnOnOff(note, true)
+			setTimeout(() => {
+				turnOnOff(note, false)
+			}, 300)
+		}, index * 50 + 300)
+	})
+}
+animate()
+setTimeout(animate, 1000)
